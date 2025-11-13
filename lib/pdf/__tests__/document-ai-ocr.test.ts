@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
 	runDocumentAiOcr,
 	__resetDocumentAiConfigForTests,
-} from "./document-ai-ocr";
+} from "../document-ai-ocr";
 
 const fetchMock = vi.fn();
 const mockGetClient = vi.fn();

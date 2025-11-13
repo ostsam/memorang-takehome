@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extractPdfText } from "./pdf-parser";
+import { extractPdfText } from "../pdf-parser";
 
 // Mock pdf-parse module - must be inside factory to avoid hoisting issues
 vi.mock("pdf-parse", () => {
@@ -424,4 +424,3 @@ describe("pdf-parser", () => {
 		});
 	});
 });
-
