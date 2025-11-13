@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizePdfText } from "./pdf-normalizer";
+import { normalizePdfText } from "../pdf-normalizer";
 
 describe("normalizePdfText", () => {
 	it("splits text into sections using detected headings", () => {

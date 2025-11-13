@@ -15,10 +15,10 @@
   "dependencies": {
     "@google-cloud/documentai": "^9.5.0",
     "@modelcontextprotocol/sdk": "^1.20.0",
-    "@openai/agents": "^0.3.0",
     "google-auth-library": "^10.5.0",
     "mcp-handler": "^1.0.2",
     "next": "15.5.4",
+    "openai": "^6.9.0",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.394",
     "react": "19.1.0",
@@ -27,11 +27,11 @@
     "zod": "^3.25.4"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.5",
     "tailwindcss": "^4",
     "tsx": "^4.19.1",
     "typescript": "^5"
