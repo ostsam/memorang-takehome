@@ -9,11 +9,13 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:agent": "tsx scripts/run-agent.ts"
   },
   "dependencies": {
     "@google-cloud/documentai": "^9.5.0",
     "@modelcontextprotocol/sdk": "^1.20.0",
+    "@openai/agents": "^0.3.0",
     "google-auth-library": "^10.5.0",
     "mcp-handler": "^1.0.2",
     "next": "15.5.4",
@@ -22,14 +24,16 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "vitest": "^4.0.8",
-    "zod": "3.24.2"
+    "zod": "^3.25.4"
   },
   "devDependencies": {
+    "dotenv": "^16.4.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
+    "tsx": "^4.19.1",
     "typescript": "^5"
   },
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
