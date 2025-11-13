@@ -3,14 +3,18 @@ import { Buffer } from "node:buffer";
 import { NextRequest, NextResponse } from "next/server";
 
 import { extractPdfText, type ParsedPdf } from "@/lib/pdf/pdf-parser";
+import {
+	normalizePdfText,
+	type NormalizedSection,
+} from "@/lib/pdf/pdf-normalizer";
 import { runDocumentAiOcr } from "@/lib/pdf/document-ai-ocr";
 
 export const runtime = "nodejs";
 
 type IngestResponse = {
-  text: string;
-  metadata: ParsedPdf["metadata"];
-  needsOcr: boolean;
+ metadata: ParsedPdf["metadata"];
+ needsOcr: boolean;
+  sections: NormalizedSection[];
   ocr?: {
     provider: "documentai";
     success: boolean;
@@ -90,9 +94,9 @@ export async function POST(request: NextRequest) {
     }
 
     const response: IngestResponse = {
-      text,
       metadata: parsed.metadata,
       needsOcr,
+      sections: normalizePdfText(text),
       ocr: ocrSummary,
       message,
     };

@@ -57,11 +57,16 @@ describe("POST /api/ingest", () => {
 
 			// Assert
 			expect(response.status).toBe(200);
-			expect(data).toEqual({
-				text: mockText,
+			expect(data).toMatchObject({
 				metadata: mockMetadata,
 				needsOcr: false,
 			});
+			expect(data.sections).toEqual([
+				{
+					heading: "Document",
+					body: mockText,
+				},
+			]);
 			expect(data.message).toBeUndefined();
 			expect(mockExtractPdfText).toHaveBeenCalledOnce();
 		});
@@ -99,8 +104,10 @@ describe("POST /api/ingest", () => {
 			// Assert
 			expect(response.status).toBe(200);
 			expect(data.needsOcr).toBe(false);
-			expect(data.text).toBe("OCR text");
 			expect(data.message).toBe("Text extracted via Document AI OCR.");
+			expect(data.sections).toEqual([
+				{ heading: "Document", body: "OCR text" },
+			]);
 			expect(data.ocr).toEqual({
 				provider: "documentai",
 				success: true,
@@ -137,13 +144,13 @@ describe("POST /api/ingest", () => {
 
 			expect(response.status).toBe(200);
 			expect(data.needsOcr).toBe(true);
-			expect(data.text).toBe("");
 			expect(data.message).toBe("Document AI OCR did not detect readable text.");
 			expect(data.ocr).toEqual({
 				provider: "documentai",
 				success: false,
 				pageCount: 5,
 			});
+			expect(data.sections).toEqual([]);
 		});
 
 		it("should treat minimal embedded text as insufficient and trigger OCR", async () => {
@@ -174,7 +181,7 @@ describe("POST /api/ingest", () => {
 
 			expect(response.status).toBe(200);
 			expect(data.needsOcr).toBe(false);
-			expect(data.text).toBe("Recovered text");
+			expect(data.sections).toEqual([{ heading: "Document", body: "Recovered text" }]);
 			expect(mockRunDocumentAiOcr).toHaveBeenCalledOnce();
 		});
 
@@ -513,7 +520,7 @@ describe("POST /api/ingest", () => {
 			expect(response.status).toBe(200);
 			// Empty text should trigger OCR
 			expect(data.needsOcr).toBe(true);
-			expect(data.text).toBe("");
+			expect(data.sections).toEqual([]);
 		});
 
 		it("should handle very large PDFs", async () => {
@@ -541,7 +548,13 @@ describe("POST /api/ingest", () => {
 
 			// Assert
 			expect(response.status).toBe(200);
-			expect(data.text.length).toBe(1000000);
+			expect(data.sections).toEqual([
+				{
+					heading: "Document",
+					body: expect.stringMatching(/^A+$/),
+				},
+			]);
+			expect(data.sections[0].body.length).toBe(1000000);
 			expect(data.needsOcr).toBe(false);
 		});
 
@@ -632,12 +645,13 @@ describe("POST /api/ingest", () => {
 			const data = await response.json();
 
 			// Assert
-			expect(data).toHaveProperty("text");
 			expect(data).toHaveProperty("metadata");
 			expect(data).toHaveProperty("needsOcr");
-			expect(typeof data.text).toBe("string");
+			expect(data).toHaveProperty("sections");
 			expect(typeof data.needsOcr).toBe("boolean");
 			expect(data.metadata).toHaveProperty("pageCount");
+			expect(Array.isArray(data.sections)).toBe(true);
+			expect(data).not.toHaveProperty("text");
 		});
 
 		it("should not include message field when OCR is not needed", async () => {
