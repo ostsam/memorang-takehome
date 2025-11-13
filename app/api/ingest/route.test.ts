@@ -2,17 +2,27 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST } from "./route";
 import { NextRequest } from "next/server";
 import { extractPdfText } from "@/lib/pdf/pdf-parser";
+import { runDocumentAiOcr } from "@/lib/pdf/document-ai-ocr";
 
-// Mock the pdf-parser module
 vi.mock("@/lib/pdf/pdf-parser", () => ({
 	extractPdfText: vi.fn(),
 }));
 
+vi.mock("@/lib/pdf/document-ai-ocr", () => ({
+	runDocumentAiOcr: vi.fn(),
+}));
+
 describe("POST /api/ingest", () => {
 	const mockExtractPdfText = vi.mocked(extractPdfText);
+	const mockRunDocumentAiOcr = vi.mocked(runDocumentAiOcr);
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockRunDocumentAiOcr.mockResolvedValue({
+			text: "",
+			pageCount: 0,
+			warnings: [],
+		});
 	});
 
 	describe("successful PDF ingestion", () => {
@@ -56,7 +66,7 @@ describe("POST /api/ingest", () => {
 			expect(mockExtractPdfText).toHaveBeenCalledOnce();
 		});
 
-		it("should detect when OCR is needed (empty text)", async () => {
+		it("should fallback to Document AI when embedded text missing and OCR succeeds", async () => {
 			// Arrange
 			mockExtractPdfText.mockResolvedValue({
 				text: "",
@@ -76,15 +86,96 @@ describe("POST /api/ingest", () => {
 				body: formData,
 			});
 
+			mockRunDocumentAiOcr.mockResolvedValue({
+				text: "OCR text",
+				pageCount: 3,
+				warnings: [],
+			});
+
 			// Act
 			const response = await POST(request);
 			const data = await response.json();
 
 			// Assert
 			expect(response.status).toBe(200);
+			expect(data.needsOcr).toBe(false);
+			expect(data.text).toBe("OCR text");
+			expect(data.message).toBe("Text extracted via Document AI OCR.");
+			expect(data.ocr).toEqual({
+				provider: "documentai",
+				success: true,
+				pageCount: 3,
+			});
+			expect(mockRunDocumentAiOcr).toHaveBeenCalled();
+		});
+
+		it("should keep needsOcr true when Document AI returns empty text", async () => {
+			mockExtractPdfText.mockResolvedValue({
+				text: "",
+				metadata: { pageCount: 5 },
+			});
+
+			mockRunDocumentAiOcr.mockResolvedValue({
+				text: "",
+				pageCount: 5,
+				warnings: [],
+			});
+
+			const formData = new FormData();
+			const pdfFile = new File(["scanned pdf"], "scanned.pdf", {
+				type: "application/pdf",
+			});
+			formData.append("file", pdfFile);
+
+			const request = new NextRequest("http://localhost/api/ingest", {
+				method: "POST",
+				body: formData,
+			});
+
+			const response = await POST(request);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
 			expect(data.needsOcr).toBe(true);
-			expect(data.message).toBe("No embedded text detected. OCR fallback required.");
 			expect(data.text).toBe("");
+			expect(data.message).toBe("Document AI OCR did not detect readable text.");
+			expect(data.ocr).toEqual({
+				provider: "documentai",
+				success: false,
+				pageCount: 5,
+			});
+		});
+
+		it("should treat minimal embedded text as insufficient and trigger OCR", async () => {
+			mockExtractPdfText.mockResolvedValue({
+				text: "-- 1 of 1 --",
+				metadata: { pageCount: 1 },
+			});
+
+			mockRunDocumentAiOcr.mockResolvedValue({
+				text: "Recovered text",
+				pageCount: 1,
+				warnings: [],
+			});
+
+			const formData = new FormData();
+			const pdfFile = new File(["scan"], "scan.pdf", {
+				type: "application/pdf",
+			});
+			formData.append("file", pdfFile);
+
+			const request = new NextRequest("http://localhost/api/ingest", {
+				method: "POST",
+				body: formData,
+			});
+
+			const response = await POST(request);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.needsOcr).toBe(false);
+			expect(data.text).toBe("Recovered text");
+			expect(mockRunDocumentAiOcr).toHaveBeenCalledOnce();
 		});
 
 		it("should handle PDFs with full metadata", async () => {
@@ -102,7 +193,7 @@ describe("POST /api/ingest", () => {
 			};
 
 			mockExtractPdfText.mockResolvedValue({
-				text: "Content",
+				text: "This PDF already contains meaningful embedded text content.",
 				metadata: fullMetadata,
 			});
 
@@ -230,7 +321,7 @@ describe("POST /api/ingest", () => {
 		it("should accept PDFs with correct MIME type", async () => {
 			// Arrange
 			mockExtractPdfText.mockResolvedValue({
-				text: "Content",
+				text: "This PDF already includes actual embedded text content.",
 				metadata: { pageCount: 1 },
 			});
 
@@ -255,7 +346,7 @@ describe("POST /api/ingest", () => {
 		it("should accept files with .pdf extension even if MIME type is missing", async () => {
 			// Arrange
 			mockExtractPdfText.mockResolvedValue({
-				text: "Content",
+				text: "This PDF already includes actual embedded text content.",
 				metadata: { pageCount: 1 },
 			});
 
@@ -347,6 +438,48 @@ describe("POST /api/ingest", () => {
 			expect(response.status).toBe(500);
 			expect(data.error).toBe("Unable to ingest PDF. Please try again.");
 			expect(consoleErrorSpy).toHaveBeenCalled();
+
+			consoleErrorSpy.mockRestore();
+		});
+
+		it("should handle Document AI OCR failures gracefully", async () => {
+			const consoleErrorSpy = vi
+				.spyOn(console, "error")
+				.mockImplementation(() => {});
+
+			mockExtractPdfText.mockResolvedValue({
+				text: "",
+				metadata: { pageCount: 2 },
+			});
+
+			mockRunDocumentAiOcr.mockRejectedValue(new Error("OCR error"));
+
+			const formData = new FormData();
+			const pdfFile = new File(["ocr"], "ocr.pdf", {
+				type: "application/pdf",
+			});
+			formData.append("file", pdfFile);
+
+			const request = new NextRequest("http://localhost/api/ingest", {
+				method: "POST",
+				body: formData,
+			});
+
+			const response = await POST(request);
+			const data = await response.json();
+
+			expect(response.status).toBe(200);
+			expect(data.needsOcr).toBe(true);
+			expect(data.message).toBe("OCR fallback failed. Please try again later.");
+			expect(data.ocr).toEqual({
+				provider: "documentai",
+				success: false,
+				pageCount: 0,
+			});
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				"[ingest] Document AI OCR failed",
+				expect.any(Error)
+			);
 
 			consoleErrorSpy.mockRestore();
 		});
@@ -476,7 +609,7 @@ describe("POST /api/ingest", () => {
 		it("should return correct response structure for successful ingestion", async () => {
 			// Arrange
 			mockExtractPdfText.mockResolvedValue({
-				text: "Sample text",
+				text: "Sample text that is definitely long enough to count as embedded content.",
 				metadata: {
 					title: "Test",
 					pageCount: 1,
@@ -510,7 +643,7 @@ describe("POST /api/ingest", () => {
 		it("should not include message field when OCR is not needed", async () => {
 			// Arrange
 			mockExtractPdfText.mockResolvedValue({
-				text: "Has text",
+				text: "Has text that should be considered sufficient for embedded content.",
 				metadata: { pageCount: 1 },
 			});
 
@@ -534,4 +667,3 @@ describe("POST /api/ingest", () => {
 		});
 	});
 });
-
