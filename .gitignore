@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#backups
+app/mcp/objectives-backup-route.ts
+lib/agent/objectives-backup-agent-schemas.ts
+lib/agent/objectives-backup-workflow.ts

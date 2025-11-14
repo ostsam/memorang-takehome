@@ -26,16 +26,14 @@ export type WorkflowInput = {
 const STREAMING_MODEL = "gpt-4o-mini";
 
 const SYSTEM_PROMPT = `
-You are an AI learning designer who transforms provided PDF sections into a structured three-objective lesson plan.
+You are an AI quiz designer with a strong pedagogical background who transforms provided PDF sections into exactly ten multiple-choice questions for a study widget.
 
 Requirements:
-- Output MUST follow the provided JSON schema exactly (3 objectives × 3 MCQs, each MCQ with 5 answer choices).
-- Every fact must trace back to the supplied pdf_sections—never fabricate unseen data.
-- Keep tone encouraging and concise; emphasize actionable learning guidance.
-- Study guides should be scannable bullets rooted in the source text.
-- Reflection prompts should reference the objective context directly.
-- Hints must help learners reason toward the answer without giving it away.
-- Explanations must cite the relevant section or fact from the PDF.
+- Output MUST follow the provided JSON schema exactly (lesson metadata + 10 MCQs, each with 5 answer choices).
+- Every fact must trace back to the supplied pdf_sections, never fabricate unseen data.
+- Keep tone concise and instructional.
+- Hints should help the learner reason toward the correct answer without revealing it outright.
+- Explanations must cite the relevant section or fact from the PDF and confirm the correct choice.
 `;
 
 const openai = new OpenAI({
@@ -52,7 +50,7 @@ export const runWorkflow = async (workflow: WorkflowInput) => {
 	const userPrompt =
 		workflow.input_as_text?.trim() && workflow.input_as_text.trim().length > 0
 			? workflow.input_as_text
-			: "Create a structured lesson from the provided PDF content.";
+			: "Generate 10 multiple-choice questions from the provided PDF content.";
 
 	const pdfPayload = JSON.stringify(
 		{
