@@ -75,13 +75,13 @@ const handler = createMcpHandler(async (server) => {
 
 	const contentWidget: ContentWidget = {
 		id: "lesson_plan_widget",
-		title: "Guided Lesson Session",
+		title: "Quiz Session",
 		templateUri: "ui://widget/lesson-runner.html",
-		invoking: "Generating lesson plan...",
-		invoked: "Lesson ready",
+		invoking: "Generating quiz...",
+		invoked: "Quiz ready",
 		html: html,
 		description:
-			"Renders the structured lesson plan with objectives, MCQs, and progress tracking.",
+			"Renders the MCQ quiz generated from the uploaded PDF with hints and explanations.",
 		widgetDomain: baseURL,
 	};
 	server.registerResource(
@@ -120,7 +120,7 @@ const handler = createMcpHandler(async (server) => {
 		{
 			title: contentWidget.title,
 			description:
-				"Run the PDF-to-lesson workflow and render the interactive widget for learners.",
+				"Run the PDF-to-quiz workflow and render the interactive widget for learners.",
 			inputSchema: workflowInputShape,
 			_meta: widgetMeta(contentWidget),
 		},
@@ -222,11 +222,11 @@ function extractFilename(url: string) {
 
 function makeSummaryText(lessonPlan: LessonPlan | undefined, pdfUrl?: string) {
 	if (!lessonPlan) {
-		return "Lesson plan generated. Open the widget to review objectives and questions.";
+		return "Quiz generated. Open the widget to review the questions.";
 	}
 
 	const parts = [
-		`Lesson "${lessonPlan.lesson.title}" ready with ${lessonPlan.objectives.length} objectives.`,
+		`Quiz "${lessonPlan.lesson.title}" ready with ${lessonPlan.questions.length} questions.`,
 	];
 
 	if (pdfUrl) {
